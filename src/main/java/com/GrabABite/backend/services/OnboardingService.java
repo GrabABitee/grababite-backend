@@ -27,17 +27,28 @@ public class OnboardingService {
             return existingUser.get(); // User already exists, return the existing user
         }
 
-        // 2. Validate college exists
-        College college = collegeRepository.findById(request.getCollegeId())
-                .orElseThrow(() -> new ResourceNotFoundException("College not found with id: " + request.getCollegeId()));
+        // 2. Validate college exists if collegeId is provided
+        College college = null;
+        if (request.getCollegeId() != null) {
+            college = collegeRepository.findById(request.getCollegeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("College not found with id: " + request.getCollegeId()));
+        }
 
         // 3. Create a new user
         User newUser = new User();
         newUser.setName(request.getName());
         newUser.setEmail(request.getEmail());
         newUser.setAuthId(request.getAuthId());
-        newUser.setRole(request.getRole());
-        newUser.setCollege(college);
+
+        // CORRECTED: Use addRole for the Set<String> roles field
+        if (request.getRole() != null && !request.getRole().isEmpty()) {
+            newUser.addRole(request.getRole()); // Add the single role from the request
+        } else {
+            // Default role if none is provided, e.g., "STUDENT"
+            newUser.addRole("STUDENT");
+        }
+
+        newUser.setCollege(college); // Set the associated college (can be null)
 
         // 4. Save the new user
         return userRepository.save(newUser);

@@ -1,7 +1,10 @@
 package com.grababite.backend.models;
 
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonIgnore; // Import JsonIgnore
 
 @Entity
 @Table(name = "users")
@@ -11,7 +14,7 @@ public class User extends AuditModel {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "auth_id", unique = true, nullable = false)
+    @Column(name = "auth_id", unique = true) // authId can be null if user is registered via username/password
     private String authId;
 
     @Column(name = "name")
@@ -20,15 +23,24 @@ public class User extends AuditModel {
     @Column(name = "email", unique = true, nullable = false)
     private String email;
 
-    @Column(name = "role", nullable = false)
-    private String role;
+    // NEW: Password field for username/password authentication
+    @Column(name = "password") // Can be null if using authId (external provider)
+    private String password;
+
+    // NEW: Roles as a collection for multiple roles
+    @ElementCollection(fetch = FetchType.EAGER) // Fetch roles eagerly when user is loaded
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role_name") // Name of the column in the user_roles table
+    private Set<String> roles = new HashSet<>(); // Use Set to avoid duplicate roles
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "college_id")
+    @JsonIgnore // NEW: Ignore during JSON serialization to prevent proxy issues
     private College college;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cafeteria_id")
+    @JsonIgnore // NEW: Ignore during JSON serialization to prevent proxy issues
     private Cafeteria cafeteria;
 
     // Getters and Setters
@@ -64,14 +76,32 @@ public class User extends AuditModel {
         this.email = email;
     }
 
-    public String getRole() {
-        return role;
+    // NEW: Getter and Setter for password
+    public String getPassword() {
+        return password;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
+    // NEW: Getter and Setter for roles (plural)
+    public Set<String> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<String> roles) {
+        this.roles = roles;
+    }
+
+    // Helper method to add a single role
+    public void addRole(String role) {
+        this.roles.add(role);
+    }
+
+    // IMPORTANT: If you need college/cafeteria details in the response,
+    // you'll need to either eagerly fetch them in a specific query (e.g., using JOIN FETCH),
+    // or use DTOs to manually map relevant fields. For now, they are ignored in the direct User entity response.
     public College getCollege() {
         return college;
     }

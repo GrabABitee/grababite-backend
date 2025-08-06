@@ -1,16 +1,25 @@
 package com.grababite.backend.dto;
 
-import java.util.UUID;
+import java.util.UUID; // Import UUID for collegeId
 
+// This DTO is used for the initial user onboarding, typically
+// for users coming from external authentication (like Google via authId).
 public class OnboardingRequest {
-
+    private String authId;
     private String name;
     private String email;
-    private String authId;
-    private String role;
-    private UUID collegeId;
+    private String role; // The role string (e.g., "STUDENT", "FACULTY")
+    private UUID collegeId; // Optional: to link the user to a college during onboarding
 
     // Getters and Setters
+    public String getAuthId() {
+        return authId;
+    }
+
+    public void setAuthId(String authId) {
+        this.authId = authId;
+    }
+
     public String getName() {
         return name;
     }
@@ -25,14 +34,6 @@ public class OnboardingRequest {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getAuthId() {
-        return authId;
-    }
-
-    public void setAuthId(String authId) {
-        this.authId = authId;
     }
 
     public String getRole() {

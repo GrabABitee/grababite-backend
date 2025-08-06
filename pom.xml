@@ -35,6 +35,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- NEW: Spring Security Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- Devtools for live reload -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -65,7 +71,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- JWT support -->
+        <!-- JWT support (already present, keep as is) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>

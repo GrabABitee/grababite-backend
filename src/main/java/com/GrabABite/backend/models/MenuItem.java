@@ -1,18 +1,18 @@
 package com.grababite.backend.models;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonIgnore; // Import JsonIgnore
 
 @Entity
 @Table(name = "menu_items")
 public class MenuItem extends AuditModel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
-
-    @Column(name = "item_id", nullable = false)
-    private UUID itemId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "item_id") // This is the primary key
+    private UUID menuItemId;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -20,33 +20,34 @@ public class MenuItem extends AuditModel {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "price", nullable = false)
+    private BigDecimal price;
+
+    @Column(name = "is_available")
+    private Boolean isAvailable;
+
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "price", nullable = false)
-    private Double price;
+    // A MenuItem belongs to one Cafeteria
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cafeteria_id", nullable = false) // This is the correct foreign key
+    @JsonIgnore // Ignore this field during serialization to prevent proxy issues
+    private Cafeteria cafeteria;
 
-    @Column(name = "category")
-    private String category;
-
-    @Column(name = "available", nullable = false)
-    private Boolean available;
+    // Optional relationship to StandardMenuItem
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "standard_menu_item_id") // Foreign key to standard_menu_items table
+    @JsonIgnore // Ignore this field during serialization
+    private StandardMenuItem standardMenuItem;
 
     // Getters and Setters
-    public UUID getId() {
-        return id;
+    public UUID getMenuItemId() {
+        return menuItemId;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getItemId() {
-        return itemId;
-    }
-
-    public void setItemId(UUID itemId) {
-        this.itemId = itemId;
+    public void setMenuItemId(UUID menuItemId) {
+        this.menuItemId = menuItemId;
     }
 
     public String getName() {
@@ -65,6 +66,22 @@ public class MenuItem extends AuditModel {
         this.description = description;
     }
 
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public Boolean getIsAvailable() {
+        return isAvailable;
+    }
+
+    public void setIsAvailable(Boolean isAvailable) {
+        this.isAvailable = isAvailable;
+    }
+
     public String getImageUrl() {
         return imageUrl;
     }
@@ -73,27 +90,22 @@ public class MenuItem extends AuditModel {
         this.imageUrl = imageUrl;
     }
 
-    public Double getPrice() {
-        return price;
+    // IMPORTANT: If you need cafeteria details in the response, you'll need to
+    // either eagerly fetch it or use a DTO to manually map relevant fields.
+    // For now, it's ignored.
+    public Cafeteria getCafeteria() {
+        return cafeteria;
     }
 
-    public void setPrice(Double price) {
-        this.price = price;
+    public void setCafeteria(Cafeteria cafeteria) {
+        this.cafeteria = cafeteria;
     }
 
-    public String getCategory() {
-        return category;
+    public StandardMenuItem getStandardMenuItem() {
+        return standardMenuItem;
     }
 
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public Boolean getAvailable() {
-        return available;
-    }
-
-    public void setAvailable(Boolean available) {
-        this.available = available;
+    public void setStandardMenuItem(StandardMenuItem standardMenuItem) {
+        this.standardMenuItem = standardMenuItem;
     }
 }

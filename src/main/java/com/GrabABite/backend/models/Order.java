@@ -1,72 +1,109 @@
-        package com.grababite.backend.models;
+package com.grababite.backend.models;
 
-        import jakarta.persistence.*;
-        import java.math.BigDecimal;
-        import java.util.UUID;
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-        @Entity
-        @Table(name = "orders")
-        public class Order extends AuditModel {
+@Entity
+@Table(name = "orders")
+public class Order extends AuditModel {
 
-            @Id // This makes orderId the primary key
-            @GeneratedValue(strategy = GenerationType.AUTO) // Or GenerationType.UUID
-            @Column(name = "order_id", nullable = false, unique = true) // Map to existing order_id column
-            private UUID orderId; // This is now the primary key
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "order_id", nullable = false, unique = true)
+    private UUID orderId;
 
-            // Removed the 'id' field as it's redundant with orderId being the PK
+    @Column(name = "status", nullable = false)
+    private String status;
 
-            @Column(name = "status", nullable = false)
-            private String status;
+    @Column(name = "total_amount", nullable = false)
+    private BigDecimal totalAmount;
 
-            @Column(name = "total_amount", nullable = false)
-            private BigDecimal totalAmount;
+    @Column(name = "pickup_code", unique = true, nullable = false)
+    private String pickupCode;
 
-            @Column(name = "pickup_code", unique = true, nullable = false)
-            private String pickupCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cafeteria_id", nullable = false)
+    @JsonIgnore
+    private Cafeteria cafeteria;
 
-            @ManyToOne(fetch = FetchType.LAZY)
-            @JoinColumn(name = "cafeteria_id", nullable = false)
-            private Cafeteria cafeteria;
+    // UPDATED: Many-to-One relationship with User, now non-nullable
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false) // Changed to nullable = false
+    @JsonIgnore
+    private User user;
 
-            // Getters and Setters
-            public UUID getOrderId() { // Renamed getter to match the @Id field
-                return orderId;
-            }
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<OrderItem> orderItems = new HashSet<>();
 
-            public void setOrderId(UUID orderId) { // Renamed setter to match the @Id field
-                this.orderId = orderId;
-            }
+    // Getters and Setters
+    public UUID getOrderId() {
+        return orderId;
+    }
 
-            public String getStatus() {
-                return status;
-            }
+    public void setOrderId(UUID orderId) {
+        this.orderId = orderId;
+    }
 
-            public void setStatus(String status) {
-                this.status = status;
-            }
+    public String getStatus() {
+        return status;
+    }
 
-            public BigDecimal getTotalAmount() {
-                return totalAmount;
-            }
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
-            public void setTotalAmount(BigDecimal totalAmount) {
-                this.totalAmount = totalAmount;
-            }
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
 
-            public String getPickupCode() {
-                return pickupCode;
-            }
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
 
-            public void setPickupCode(String pickupCode) {
-                this.pickupCode = pickupCode;
-            }
+    public String getPickupCode() {
+        return pickupCode;
+    }
 
-            public Cafeteria getCafeteria() {
-                return cafeteria;
-            }
+    public void setPickupCode(String pickupCode) {
+        this.pickupCode = pickupCode;
+    }
 
-            public void setCafeteria(Cafeteria cafeteria) {
-                this.cafeteria = cafeteria;
-            }
-        }
-        
+    public Cafeteria getCafeteria() {
+        return cafeteria;
+    }
+
+    public void setCafeteria(Cafeteria cafeteria) {
+        this.cafeteria = cafeteria;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Set<OrderItem> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(Set<OrderItem> orderItems) {
+        this.orderItems = orderItems;
+    }
+
+    public void addOrderItem(OrderItem orderItem) {
+        this.orderItems.add(orderItem);
+        orderItem.setOrder(this);
+    }
+
+    public void removeOrderItem(OrderItem orderItem) {
+        this.orderItems.remove(orderItem);
+        orderItem.setOrder(null);
+    }
+}
