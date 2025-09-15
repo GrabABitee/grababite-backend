@@ -1,6 +1,7 @@
 package com.grababite.backend.config;
 
-import com.grababite.backend.repositories.UserRepository;
+import java.util.Arrays;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,8 +21,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
+import com.grababite.backend.repositories.UserRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -45,13 +45,16 @@ public class SecurityConfig {
                 .map(user -> org.springframework.security.core.userdetails.User.builder()
                         .username(user.getEmail())
                         .password(user.getPassword())
-                        .roles(user.getRoles().toArray(new String[0]))
+                        .roles(user.getRoles().toArray(new String[0])) // maps "ADMIN" -> ROLE_ADMIN
                         .build())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    public AuthenticationManager authenticationManager(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
         DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
         authenticationProvider.setUserDetailsService(userDetailsService);
         authenticationProvider.setPasswordEncoder(passwordEncoder);
@@ -61,63 +64,72 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow your frontend origins
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "https://grab-a-bite-campus-efhj.vercel.app"));
-        // Allow all necessary HTTP methods
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000", 
+            "https://grab-a-bite-campus-efhj.vercel.app",
+            "http://localhost:8081"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Allow specific headers
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        // Allow credentials (like cookies, HTTP authentication)
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"
+        ));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // Apply this CORS configuration to all paths
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for stateless REST APIs
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Apply CORS configuration
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authorize -> authorize
-                // NEW: Allow OPTIONS requests for all paths to handle CORS preflight requests
+                // OPTIONS requests (CORS preflight)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Publicly accessible endpoints for initial setup
+                // Public authentication/onboarding
                 .requestMatchers("/api/admin/register").permitAll()
-                .requestMatchers("/api/onboarding/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll() // Allow login endpoint
+                .requestMatchers(HttpMethod.POST, "/api/onboarding/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
 
-                // College and Cafeteria creation/management - Restricted to ADMIN
+                // College management (ADMIN only)
                 .requestMatchers(HttpMethod.POST, "/api/colleges").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/colleges/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/colleges/**").hasRole("ADMIN")
 
+                // Cafeteria management (ADMIN only)
                 .requestMatchers(HttpMethod.POST, "/api/cafeterias").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/cafeterias/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/cafeterias/**").hasRole("ADMIN")
 
-                // Allow anyone to GET college, cafeteria, and standard menu item lists/details (read-only access)
+                // Public GET APIs
                 .requestMatchers(HttpMethod.GET, "/api/colleges/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/cafeterias/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/menu-items/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/standard-menu-items/**").permitAll()
 
-                // Menu Item Management (handled by @PreAuthorize in MenuItemController)
-                // Standard Menu Item Management (Admin-only)
+                // Standard menu item management (ADMIN only)
                 .requestMatchers(HttpMethod.POST, "/api/standard-menu-items").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/standard-menu-items/bulk").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/standard-menu-items/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/standard-menu-items/**").hasRole("ADMIN")
 
-                // User Management Endpoints - Restricted to ADMIN
+                // User profile
+                .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
 
-                // App Settings Endpoints - Restricted to ADMIN (using method-level security via @PreAuthorize)
-                // All other requests require authentication (catch-all for future endpoints)
+                // Orders (basic constraints, fine-grained checks in OrderController)
+                .requestMatchers(HttpMethod.POST, "/api/orders").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.PUT, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
+
+                // Default: everything else needs authentication
                 .anyRequest().authenticated()
             )
-            .httpBasic(httpBasic -> httpBasic.realmName("GrabABite Realm")); // Enable HTTP Basic authentication
+            .httpBasic(httpBasic -> httpBasic.realmName("GrabABite Realm"));
 
         return http.build();
     }

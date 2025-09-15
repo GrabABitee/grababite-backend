@@ -8,6 +8,7 @@ public class OnboardingRequest {
     private String authId;
     private String name;
     private String email;
+    private String password;
     private String role; // The role string (e.g., "STUDENT", "FACULTY")
     private UUID collegeId; // Optional: to link the user to a college during onboarding
 
@@ -35,7 +36,9 @@ public class OnboardingRequest {
     public void setEmail(String email) {
         this.email = email;
     }
-
+    public String getPassword() {
+        return password;
+    }
     public String getRole() {
         return role;
     }

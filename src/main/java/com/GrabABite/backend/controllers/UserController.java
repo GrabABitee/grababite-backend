@@ -1,16 +1,24 @@
 package com.grababite.backend.controllers;
 
-import com.grababite.backend.models.User;
-import com.grababite.backend.services.UserService;
-import com.grababite.backend.exceptions.ResourceNotFoundException;
-import com.grababite.backend.dto.UserResponse; // Import UserResponse DTO
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
+import com.grababite.backend.dto.UserResponse;
+import com.grababite.backend.exceptions.ResourceNotFoundException;
+import com.grababite.backend.models.User;
+import com.grababite.backend.services.UserService;
 
 @RestController
 @RequestMapping("/api/users")
@@ -20,49 +28,78 @@ public class UserController {
     private UserService userService;
 
     /**
+     * GET /api/users/me
+     * Retrieves the currently authenticated user's profile.
+     * Accessible by STUDENT or ADMIN.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getCurrentUserProfile() {
+        try {
+            UserResponse currentUser = userService.getCurrentUserProfile();
+            return ResponseEntity.ok(currentUser);
+        } catch (ResourceNotFoundException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    /**
+     * PUT /api/users/me
+     * Updates the currently authenticated user's profile.
+     * Accessible by STUDENT or ADMIN.
+     */
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateCurrentUser(@RequestBody User userDetails) {
+        try {
+            UserResponse updatedUser = userService.updateCurrentUser(userDetails);
+            return ResponseEntity.ok(updatedUser);
+        } catch (ResourceNotFoundException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * GET /api/users
      * Retrieves a list of all users.
-     * This endpoint should typically be restricted to ADMIN users.
-     * @return A list of UserResponse DTOs.
+     * Restricted to ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public List<UserResponse> getAllUsers() { // Changed return type to List<UserResponse>
-        return userService.getAllUsers(); // Service now returns DTOs
+    public List<UserResponse> getAllUsers() {
+        return userService.getAllUsers();
     }
 
     /**
      * GET /api/users/{id}
-     * Retrieves a single user by their ID.
-     * This endpoint should typically be restricted to ADMIN users, or the user themselves.
-     * @param id The UUID of the user to retrieve.
-     * @return ResponseEntity with the UserResponse DTO and HTTP status 200 OK,
-     * or 404 Not Found if the user does not exist.
+     * Retrieves a single user by ID.
+     * Restricted to ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) { // Changed return type to UserResponse
-        return userService.getUserById(id) // Use the service method that returns DTO
+    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
+        return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /**
      * PUT /api/users/{id}
-     * Updates an existing user's details.
-     * This endpoint should typically be restricted to ADMIN users.
-     * @param id The UUID of the user to update.
-     * @param userDetails The User object with updated details (sent in request body).
-     * @return ResponseEntity with the updated UserResponse DTO and HTTP status 200 OK,
-     * or 404 Not Found if the user does not exist, or 400 Bad Request for invalid data.
+     * Updates a user's details.
+     * Restricted to ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable UUID id, @RequestBody User userDetails) { // Changed return type to UserResponse
+    public ResponseEntity<UserResponse> updateUser(@PathVariable UUID id, @RequestBody User userDetails) {
         try {
-            UserResponse updatedUser = userService.updateUser(id, userDetails); // Service now returns DTO
+            UserResponse updatedUser = userService.updateUser(id, userDetails);
             return ResponseEntity.ok(updatedUser);
         } catch (ResourceNotFoundException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND); // Use NOT_FOUND for resource not found
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST); // e.g., email already exists
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -70,12 +107,10 @@ public class UserController {
 
     /**
      * DELETE /api/users/{id}
-     * Deletes a user by their ID.
-     * This endpoint should typically be restricted to ADMIN users.
-     * @param id The UUID of the user to delete.
-     * @return ResponseEntity with HTTP status 204 No Content if deleted,
-     * or 404 Not Found if the user does not exist.
+     * Deletes a user by ID.
+     * Restricted to ADMIN.
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<HttpStatus> deleteUser(@PathVariable UUID id) {
         boolean deleted = userService.deleteUser(id);
