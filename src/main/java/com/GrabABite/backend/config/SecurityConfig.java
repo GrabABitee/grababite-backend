@@ -65,9 +65,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000", 
+            "http://localhost:3000",
             "https://grab-a-bite-campus-efhj.vercel.app",
-            "http://localhost:8081"
+            "http://localhost:8081",
+            "https://lovable.dev/projects/8ae01cb5-cfdd-476a-8b56-5df71e06881b"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList(
