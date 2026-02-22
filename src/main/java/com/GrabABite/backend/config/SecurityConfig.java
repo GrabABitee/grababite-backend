@@ -128,10 +128,19 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
 
                 // Default: everything else needs authentication
-                .anyRequest().authenticated()
-            )
-            .httpBasic(httpBasic -> httpBasic.realmName("GrabABite Realm"));
+//                 .anyRequest().authenticated()
+//             )
+//             .httpBasic(httpBasic -> httpBasic.realmName("GrabABite Realm"));
 
-        return http.build();
-    }
-}
+//         return http.build();
+//     }
+// }
+                .anyRequest().authenticated()
+                )
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .formLogin(AbstractHttpConfigurer::disable);
+
+            return http.build();
+            }
+        }
+
