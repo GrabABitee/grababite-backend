@@ -1,16 +1,28 @@
 package com.grababite.backend.dto;
 
-import com.grababite.backend.models.User;
+import java.util.UUID;
 
 public class AuthResponse {
 
-    private String message;
-    private User user;
+    private String token;
+    private String role;
+    private UUID userId;
 
-    public AuthResponse(String message, User user) {
-        this.message = message;
-        this.user = user;
+    public AuthResponse(String token, String role, UUID userId) {
+        this.token = token;
+        this.role = role;
+        this.userId = userId;
     }
 
-    // Getters and Setters (omitted for brevity)
+    public String getToken() {
+        return token;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
 }
