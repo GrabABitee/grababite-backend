@@ -12,11 +12,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,9 +31,11 @@ import com.grababite.backend.repositories.UserRepository;
 public class SecurityConfig {
 
     private final UserRepository userRepository;
+    private final JwtFilter jwtFilter;
 
-    public SecurityConfig(UserRepository userRepository) {
+    public SecurityConfig(UserRepository userRepository, JwtFilter jwtFilter) {
         this.userRepository = userRepository;
+        this.jwtFilter = jwtFilter;
     }
 
     @Bean
@@ -45,9 +49,9 @@ public class SecurityConfig {
                 .map(user -> org.springframework.security.core.userdetails.User.builder()
                         .username(user.getEmail())
                         .password(user.getPassword())
-                        .roles(user.getRoles().toArray(new String[0])) // maps "ADMIN" -> ROLE_ADMIN
+                        .roles(user.getRoles().toArray(new String[0]))
                         .build())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
     @Bean
@@ -55,26 +59,26 @@ public class SecurityConfig {
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder
     ) {
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userDetailsService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder);
-        return new ProviderManager(authenticationProvider);
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return new ProviderManager(provider);
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "https://grab-a-bite-campus-efhj.vercel.app",
-            "http://localhost:8081",
-            "https://lovable.dev/projects/8ae01cb5-cfdd-476a-8b56-5df71e06881b"
+                "http://localhost:3000",
+                "https://grab-a-bite-campus-efhj.vercel.app"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ));
         configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"
+                "Authorization", "Content-Type"
         ));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(false); // JWT = no cookies
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -82,65 +86,53 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session ->
+                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
             .authorizeHttpRequests(authorize -> authorize
-                // OPTIONS requests (CORS preflight)
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Public authentication/onboarding
+                // Public routes
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/admin/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/onboarding/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-
-                // College management (ADMIN only)
-                .requestMatchers(HttpMethod.POST, "/api/colleges").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/colleges/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/colleges/**").hasRole("ADMIN")
-
-                // Cafeteria management (ADMIN only)
-                .requestMatchers(HttpMethod.POST, "/api/cafeterias").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/cafeterias/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/cafeterias/**").hasRole("ADMIN")
-
-                // Public GET APIs
                 .requestMatchers(HttpMethod.GET, "/api/colleges/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/cafeterias/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/menu-items/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/standard-menu-items/**").permitAll()
 
-                // Standard menu item management (ADMIN only)
+                // ADMIN routes
+                .requestMatchers(HttpMethod.POST, "/api/colleges").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/colleges/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/colleges/**").hasRole("ADMIN")
+
+                .requestMatchers(HttpMethod.POST, "/api/cafeterias").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/cafeterias/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/cafeterias/**").hasRole("ADMIN")
+
                 .requestMatchers(HttpMethod.POST, "/api/standard-menu-items").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/standard-menu-items/bulk").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/standard-menu-items/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/standard-menu-items/**").hasRole("ADMIN")
 
-                // User profile
-                .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
 
-                // Orders (basic constraints, fine-grained checks in OrderController)
+                // STUDENT routes
                 .requestMatchers(HttpMethod.POST, "/api/orders").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.PUT, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
 
-                // Default: everything else needs authentication
-//                 .anyRequest().authenticated()
-//             )
-//             .httpBasic(httpBasic -> httpBasic.realmName("GrabABite Realm"));
+                // Authenticated
+                .requestMatchers("/api/orders/**").authenticated()
+                .requestMatchers("/api/users/me").authenticated()
 
-//         return http.build();
-//     }
-// }
                 .anyRequest().authenticated()
-                )
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable);
+            );
 
-            return http.build();
-            }
-        }
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
+        return http.build();
+    }
+}
